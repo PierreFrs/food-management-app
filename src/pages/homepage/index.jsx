@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect, useReducer, useContext} from 'react';
+import { useState, useEffect, useReducer, useContext, useCallback, useMemo } from 'react';
 import './style.css';
 import Search from '../../components/search';
 import RecipeItem from '../../components/recipe-item';
@@ -27,7 +27,7 @@ function Homepage() {
   const [loadingState, setLoadingState] = useState(false);
 
   // save results received from api
-  const [receipes, setRecipes] = useState([]);
+  const [recipes, setRecipes] = useState([]);
 
   // favorite data state
   const [favorites, setFavorites] = useState([]);
@@ -52,7 +52,7 @@ function Homepage() {
       if (results && results.length > 0) {
         // set the loading state as false again
         setLoadingState(false);        
-        // set the receipes state
+        // set the recipes state
         setRecipes(results);
         // set the api success to true
         setApiCalledSuccess(true);
@@ -61,7 +61,7 @@ function Homepage() {
     getRecipes();
   };
 
-  const addToFavorites = (getCurrentRecipeItem) => {
+  const addToFavorites = useCallback((getCurrentRecipeItem) => {
     let copyFavorites = [...favorites];
     const index = copyFavorites.findIndex(item => item.id === getCurrentRecipeItem.id);
     if(index === -1) {
@@ -69,10 +69,11 @@ function Homepage() {
       setFavorites(copyFavorites);
       // save favorites in local storage
       localStorage.setItem('favorites', JSON.stringify(copyFavorites));
+      window.scrollTo({top: '0', behavior: 'smooth'});
     } else {
       alert('Item is already present in favorites')
     }
-  }
+  }, [favorites])
 
   const removeFromFavorites = (getCurrentId) => {
     let copyFavorites = [...favorites];
@@ -82,12 +83,25 @@ function Homepage() {
   }
 
   useEffect(() => {
-    const extractFavoritesFromLocalStorageOnPageLoad = JSON.parse(localStorage.getItem('favorites'));
+    const extractFavoritesFromLocalStorageOnPageLoad = JSON.parse(localStorage.getItem('favorites')) || [];
     setFavorites(extractFavoritesFromLocalStorageOnPageLoad);
   }, [])
 
   // filter the favorites
-  const filteredFavoritesItems = favorites.filter(item => item.title.toLowerCase().includes(filteredState.filteredValue))
+  const filteredFavoritesItems = favorites && favorites.length > 0 ? favorites.filter(item => item.title.toLowerCase().includes(filteredState.filteredValue)) : [];
+
+  const renderRecipes = useCallback(() => {
+    if (recipes && recipes.length > 0) {
+      return (
+        recipes.map((item) => (<RecipeItem 
+          addToFavorites={() => addToFavorites(item)} 
+          id={item.id} 
+          image={item.image} 
+          title={item.title}
+        />))
+      )
+    }
+  }, [recipes, addToFavorites]);
 
   return (
     <div>
@@ -111,6 +125,9 @@ function Homepage() {
 
             <div className="favorites">
               {
+                !filteredFavoritesItems.length && <div style={{display : 'flex', justifyContent: 'center', width: '100%'}} className='no-items'>No favorites are found</div>
+              }
+              {
                 filteredFavoritesItems && filteredFavoritesItems.length > 0 ?
                 filteredFavoritesItems.map(item => (
                   <FavoriteItem
@@ -130,19 +147,37 @@ function Homepage() {
         }
         {/* show loading state */}
 
-        {/* map through all the receipes*/}
+        {/* map through all the recipes*/}
         <div className="items">
-          {
-            receipes && receipes.length > 0 ?
-            receipes.map((item) => (<RecipeItem 
+          
+            {/* renderRecipes() */}
+            {
+              useMemo(() =>
+                !loadingState && recipes && recipes.length > 0 ?
+                recipes.map((item) => (<RecipeItem 
+                  addToFavorites={() => addToFavorites(item)} 
+                  id={item.id} 
+                  image={item.image} 
+                  title={item.title}
+                  />))
+                : null
+              , [loadingState, recipes, addToFavorites])
+            }
+          
+          {/* {
+            recipes && recipes.length > 0 ?
+            recipes.map((item) => (<RecipeItem 
             addToFavorites={() => addToFavorites(item)} 
             id={item.id} 
             image={item.image} 
             title={item.title}
             />)) : null
-          }
+          } */}
         </div>
-        {/* map through all the receipes*/}
+        {/* map through all the recipes*/}
+        {
+          !loadingState && !recipes.length && <div className='no-items'>No Recipes are found</div>
+        }
     </div>
   )
 }

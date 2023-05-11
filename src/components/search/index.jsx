@@ -27,7 +27,7 @@ function Search(props) {
             setInputValue('');
             setApiCalledSuccess(false);
         }
-    }, [apiCalledSuccess])
+    }, [apiCalledSuccess, setApiCalledSuccess])
 
     return (
         
